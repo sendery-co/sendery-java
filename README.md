@@ -1,14 +1,16 @@
-# Sendery — Java integration
+# Sendery for Java
 
-Send template emails from Java with the Sendery SDK.
+Send published Sendery templates from Java.
 
-MIT licensed. Repository: https://github.com/sendery-co/sendery-java
+[Documentation](https://sendery.co/en/docs/java) · [API reference](https://sendery.co/en/docs/send-email) · [Changelog](CHANGELOG.md)
 
-Documentation: https://sendery.co/en/docs/java
+## Requirements
+
+Java 17+.
 
 ## Install
 
-```
+```xml
 <dependency>
   <groupId>co.sendery</groupId>
   <artifactId>sendery-java</artifactId>
@@ -16,39 +18,78 @@ Documentation: https://sendery.co/en/docs/java
 </dependency>
 ```
 
-## Install
+## Set up
 
-Java 17+
+Publish a `welcome` template with `name` and `action_url` variables, and create a [project API key](https://sendery.co/en/docs/authentication). Store it as `SENDERY_API_KEY` on your server.
 
-## Configure the client
-
-Create a Sendery client using SENDERY_API_KEY. The client uses Java HttpClient and Gson, with redirects disabled and bounded timeouts.
-
-## Use the response
-
-SendReceipt provides id() and status(). Call get(id) for status. SenderyException exposes status(), code(), and retryAfter(). Requests are synchronous; run them on an appropriate worker thread.
-
-## Configuration example
-
-```
-<dependency>
-  <groupId>co.sendery</groupId>
-  <artifactId>sendery-java</artifactId>
-  <version>0.1.0</version>
-</dependency>
+```bash
+export SENDERY_API_KEY="your_project_api_key"
 ```
 
-## Example
+## Send an email
 
-```
+The response contains the accepted email’s `id` and `status`.
+
+```java
 import co.sendery.Sendery;
 import java.util.Map;
 
-var sendery = new Sendery(System.getenv("SENDERY_API_KEY"));
-var email = sendery.prepare("alex@example.com", "welcome", Map.of("name", "Alex"));
+public class SendWelcome {
+    public static void main(String[] args) {
+        var sendery = new Sendery(System.getenv("SENDERY_API_KEY"));
+        var receipt = sendery.send("alex@example.com", "welcome", Map.of(
+            "name", "Alex",
+            "action_url", "https://example.com/start"
+        ));
+        System.out.println(receipt.id());
+    }
+}
+```
+
+## Retrieve an email
+
+Use the returned ID to [check delivery status](https://sendery.co/en/docs/get-email). `SendReceipt` also provides `errorCode()`, `createdAt()`, and `submittedAt()`. Calls block until the request completes.
+
+```java
+var message = sendery.get(receipt.id());
+System.out.println(message.status());
+```
+
+## Retry a send
+
+Use a key such as `welcome-123` for one email, and [keep the payload unchanged on retries](https://sendery.co/en/docs/idempotency). `retry(3)` allows up to three additional attempts for temporary failures; `send()` alone makes one attempt.
+
+```java
+var email = sendery.prepare("alex@example.com", "welcome", Map.of(
+    "name", "Alex", "action_url", "https://example.com/start"
+), null, "welcome-123");
 var receipt = email.retry(3).send();
 ```
 
-## Retries and queues
+## Handle errors
 
-Reuse a prepared email for retries. New requests receive new keys; when reconstructing a request in another process, supply the original key and unchanged data. Keep API keys server-side. Framework mailers send Sendery templates, not arbitrary HTML or attachments.
+Catch the SDK exception to inspect the [status and code](https://sendery.co/en/docs/errors). Retry delays are in seconds. The example uses the prepared `email` from the [retry example above](#retry-a-send).
+
+```java
+try {
+    var receipt = email.retry(3).send();
+    System.out.println(receipt.id());
+} catch (co.sendery.SenderyException error) {
+    System.err.println(error.status() + ": " + error.code());
+    // error.errors() contains field-level validation errors.
+    // error.retryAfter() is a delay in seconds, when provided.
+    throw error;
+}
+```
+
+## Kotlin
+
+Use the same JVM package. See the [Kotlin guide](https://sendery.co/en/docs/kotlin) for Gradle setup and examples.
+
+## More
+
+See [idempotency and retries](https://sendery.co/en/docs/idempotency) for retry conditions, delays, and reusing a key across attempts.
+
+## License
+
+[MIT](LICENSE).
