@@ -14,7 +14,7 @@ Java 17+.
 <dependency>
   <groupId>co.sendery</groupId>
   <artifactId>sendery-java</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
 </dependency>
 ```
 
@@ -44,6 +44,50 @@ public class SendWelcome {
         System.out.println(receipt.id());
     }
 }
+```
+
+## Attachments
+
+Pass a list of `Attachment` objects with the filename, file bytes, and MIME type. The SDK handles base64 encoding.
+
+Send up to 10 files totaling 5 MB. See the [attachment reference](https://sendery.co/en/docs/send-email#section-5) for supported formats and limits.
+
+```java
+import co.sendery.Attachment;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+var file = Files.readAllBytes(Path.of("document.pdf"));
+
+sendery.prepare(
+    "alex@example.com",
+    "welcome",
+    Map.of("name", "Alex", "action_url", "https://example.com/start"),
+    null,
+    "welcome-attachment-123",
+    List.of(new Attachment("document.pdf", file, "application/pdf"))
+).retry().send();
+```
+
+In Kotlin:
+
+```kotlin
+import co.sendery.Attachment
+import java.nio.file.Files
+import java.nio.file.Path
+
+val file = Files.readAllBytes(Path.of("document.pdf"))
+
+sendery.prepare(
+    "alex@example.com",
+    "welcome",
+    mapOf("name" to "Alex", "action_url" to "https://example.com/start"),
+    null,
+    "welcome-attachment-123",
+    listOf(Attachment("document.pdf", file, "application/pdf"))
+).retry().send()
 ```
 
 ## Retrieve an email

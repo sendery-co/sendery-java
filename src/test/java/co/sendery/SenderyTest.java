@@ -24,9 +24,14 @@ class SenderyTest {
         try {
             var client = new Sendery("test", "http://127.0.0.1:" + server.getAddress().getPort());
             var data = new HashMap<String, String>(); data.put("name", "Original");
-            var email = client.prepare("a@example.com", "welcome", data, null, "event-12");
+            var bytes = new byte[] {0, 1, (byte)255};
+            var email = client.prepare("a@example.com", "welcome", data, null, "event-12", List.of(new Attachment("invoice.pdf", bytes, "application/pdf")));
+            bytes[0] = 99;
             data.put("name", "Changed");
             assertEquals("one", email.retry().send().id());
+            assertTrue(bodies.get(0).contains("AAH/"));
+            assertTrue(bodies.get(0).contains("application/pdf"));
+            assertThrows(IllegalArgumentException.class, () -> client.prepare("a@example.com", "receipt", Map.of(), null, null, List.of(new Attachment("a.pdf", new byte[5242880], "application/pdf"), new Attachment("b.pdf", new byte[1], "application/pdf"))));
             assertEquals(2, bodies.size()); assertEquals(bodies.get(0), bodies.get(1));
             assertTrue(bodies.get(0).contains("Original")); assertEquals(List.of("event-12", "event-12"), keys);
         } finally { server.stop(0); }

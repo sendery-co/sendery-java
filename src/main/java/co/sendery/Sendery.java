@@ -29,7 +29,13 @@ public final class Sendery {
     }
     public PendingEmail prepare(String to, String template, Map<String, ?> data) { return prepare(to, template, data, null, UUID.randomUUID().toString()); }
     public PendingEmail prepare(String to, String template, Map<String, ?> data, String locale, String idempotencyKey) {
+        return prepare(to, template, data, locale, idempotencyKey, java.util.List.of());
+    }
+    public PendingEmail prepare(String to, String template, Map<String, ?> data, String locale, String idempotencyKey, java.util.List<Attachment> attachments) {
+        if (attachments.size() > 10 || attachments.stream().mapToLong(Attachment::size).sum() > 5242880)
+            throw new IllegalArgumentException("Use at most 10 attachments, up to 5 MB combined.");
         var payload = new JsonObject(); payload.addProperty("to", to); payload.addProperty("template", template); payload.add("data", json.toJsonTree(data));
+        if (!attachments.isEmpty()) payload.add("attachments", json.toJsonTree(attachments));
         if (locale != null) payload.addProperty("locale", locale);
         return new PendingEmail(this, payload.toString(), idempotencyKey == null ? UUID.randomUUID().toString() : idempotencyKey);
     }
