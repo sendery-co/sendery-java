@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 public final class Sendery {
@@ -41,7 +42,29 @@ public final class Sendery {
     }
     public SendReceipt send(String to, String template, Map<String, ?> data) { return prepare(to, template, data).send(); }
     public SendReceipt get(String id) { return request("GET", "/api/v1/emails/" + URLEncoder.encode(id, StandardCharsets.UTF_8), null, null); }
+    public EventTypeReceipt defineEvent(String name, Map<String, ?> definition) {
+        return request("PUT", "/api/v1/event-types/" + URLEncoder.encode(name, StandardCharsets.UTF_8), json.toJson(definition), null, EventTypeReceipt.class);
+    }
+    public List<EventType> getEventTypes() {
+        return request("GET", "/api/v1/event-types", null, null, EventCatalog.class).events();
+    }
+    private record EventCatalog(List<EventType> events) {}
+    public PendingEvent event(String name, String objectType, String objectId, Map<String, ?> data) {
+        return event(name, objectType, objectId, data, null, null);
+    }
+    public PendingEvent event(String name, String objectType, String objectId, Map<String, ?> data, String correlationId, String idempotencyKey) {
+        var payload = new JsonObject(); payload.addProperty("name", name);
+        payload.add("object", json.toJsonTree(Map.of("type", objectType, "id", objectId)));
+        payload.add("data", json.toJsonTree(data));
+        if (correlationId != null) payload.addProperty("correlation_id", correlationId);
+        return new PendingEvent(this, payload.toString(), idempotencyKey == null ? UUID.randomUUID().toString() : idempotencyKey);
+    }
+    public EventReceipt getEvent(String id) { return request("GET", "/api/v1/events/" + URLEncoder.encode(id, StandardCharsets.UTF_8), null, null, EventReceipt.class); }
+    public EventReceipt forgetObject(String type, String id) { return request("DELETE", "/api/v1/event-objects", json.toJson(Map.of("type", type, "id", id)), null, EventReceipt.class); }
     SendReceipt request(String method, String path, String body, String idempotencyKey) {
+        return request(method, path, body, idempotencyKey, SendReceipt.class);
+    }
+    <T> T request(String method, String path, String body, String idempotencyKey, Class<T> receiptType) {
         var builder = HttpRequest.newBuilder(URI.create(baseUrl + path)).timeout(Duration.ofSeconds(10)).header("Authorization", "Bearer " + key).header("Accept", "application/json").header("Content-Type", "application/json");
         if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey);
         var request = builder.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body)).build();
@@ -64,9 +87,13 @@ public final class Sendery {
             throw new SenderyException(response.statusCode(), code, delay, errors);
         }
         try {
-            var receipt = json.fromJson(response.body(), SendReceipt.class);
-            if (receipt == null || receipt.id() == null || receipt.status() == null) throw new IllegalArgumentException();
-            return receipt;
+            var object = JsonParser.parseString(response.body()).getAsJsonObject();
+            if (path.equals("/api/v1/event-types")) {
+                if (!object.has("events") || !object.get("events").isJsonArray()) throw new IllegalArgumentException();
+            } else if (path.startsWith("/api/v1/event-types/")) {
+                if (!object.has("name") || !object.get("name").isJsonPrimitive() || !object.getAsJsonPrimitive("name").isString() || !object.has("verified") || !object.get("verified").isJsonPrimitive() || !object.getAsJsonPrimitive("verified").isBoolean()) throw new IllegalArgumentException();
+            } else if (!object.has("id") || !object.get("id").isJsonPrimitive() || !object.getAsJsonPrimitive("id").isString() || !object.has("status") || !object.get("status").isJsonPrimitive() || !object.getAsJsonPrimitive("status").isString()) throw new IllegalArgumentException();
+            return json.fromJson(object, receiptType);
         } catch (RuntimeException exception) { throw new SenderyException(0, "invalid_response", null); }
     }
 }
