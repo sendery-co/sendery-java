@@ -47,7 +47,7 @@ class SenderyTest {
             if (exchange.getRequestMethod().equals("GET")) {
                 var response = """
                     {"id":"event","status":"accepted","name":"listing.created","received_at":"2026-11-21T00:00:00+00:00",
-                     "environment":"sandbox","matched_triggers":1,"runs":[{"id":"run","trigger_id":4,"status":"completed",
+                     "environment":"sandbox","matched_workflows":1,"runs":[{"id":"run","workflow_id":4,"status":"completed",
                      "due_at":null,"error_code":null,"actions":[{"position":0,"type":"condition","status":"completed","email_id":null}]}]}
                     """.getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, response.length);
@@ -56,7 +56,7 @@ class SenderyTest {
             }
             bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             keys.add(exchange.getRequestHeaders().getFirst("Idempotency-Key"));
-            var response = (bodies.size() == 1 ? "{}" : "{\"id\":\"event\",\"status\":\"accepted\",\"matched_triggers\":2}").getBytes(StandardCharsets.UTF_8);
+            var response = (bodies.size() == 1 ? "{}" : "{\"id\":\"event\",\"status\":\"accepted\",\"matched_workflows\":2}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Retry-After", "0");
             exchange.sendResponseHeaders(bodies.size() == 1 ? 503 : 202, response.length);
             exchange.getResponseBody().write(response); exchange.close();
@@ -67,7 +67,7 @@ class SenderyTest {
             var owner = new HashMap<String, String>(); owner.put("email", "alex@example.com");
             var event = client.event("listing.created", "listing", "42", Map.of("owner", owner));
             owner.put("email", "changed@example.com");
-            assertEquals(2, event.retry().send().matchedTriggers());
+            assertEquals(2, event.retry().send().matchedWorkflows());
             assertEquals(bodies.get(0), bodies.get(1));
             assertEquals(keys.get(0), keys.get(1));
             assertTrue(bodies.get(0).contains("alex@example.com"));
