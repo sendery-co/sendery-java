@@ -39,8 +39,8 @@ import java.util.Map;
 public class SendEmail {
     public static void main(String[] args) {
         var sendery = new Sendery(System.getenv("SENDERY_API_KEY"));
-        var receipt = sendery.send("alex@example.com", "your-template", Map.of(
-            "name", "Alex",
+        var receipt = sendery.send("steven@example.com", "your-template", Map.of(
+            "name", "Steven",
             "action_url", "https://example.com/start"
         ));
         System.out.println(receipt.id());
@@ -55,8 +55,8 @@ Choose a [published template version](https://sendery.co/en/docs/send-email#sect
 ```java
 import java.util.Map;
 
-var receipt = sendery.prepare("alex@example.com", "your-template", Map.of(
-    "name", "Alex",
+var receipt = sendery.prepare("steven@example.com", "your-template", Map.of(
+    "name", "Steven",
     "action_url", "https://example.com/start"
 )).version(3).send();
 ```
@@ -64,8 +64,8 @@ var receipt = sendery.prepare("alex@example.com", "your-template", Map.of(
 In Kotlin:
 
 ```kotlin
-val receipt = sendery.prepare("alex@example.com", "your-template", mapOf(
-    "name" to "Alex",
+val receipt = sendery.prepare("steven@example.com", "your-template", mapOf(
+    "name" to "Steven",
     "action_url" to "https://example.com/start"
 )).version(3).send()
 ```
@@ -86,9 +86,9 @@ import java.util.Map;
 var file = Files.readAllBytes(Path.of("document.pdf"));
 
 sendery.prepare(
-    "alex@example.com",
+    "steven@example.com",
     "your-template",
-    Map.of("name", "Alex", "action_url", "https://example.com/start"),
+    Map.of("name", "Steven", "action_url", "https://example.com/start"),
     null,
     "your-idempotency-key",
     List.of(new Attachment("document.pdf", file, "application/pdf"))
@@ -105,9 +105,9 @@ import java.nio.file.Path
 val file = Files.readAllBytes(Path.of("document.pdf"))
 
 sendery.prepare(
-    "alex@example.com",
+    "steven@example.com",
     "your-template",
-    mapOf("name" to "Alex", "action_url" to "https://example.com/start"),
+    mapOf("name" to "Steven", "action_url" to "https://example.com/start"),
     null,
     "your-idempotency-key",
     listOf(Attachment("document.pdf", file, "application/pdf"))
@@ -128,8 +128,8 @@ System.out.println(message.status());
 Use `retry(3)` for up to three extra attempts after temporary failures. Keep the same [idempotency key and email data](https://sendery.co/en/docs/idempotency) on every attempt.
 
 ```java
-var email = sendery.prepare("alex@example.com", "your-template", Map.of(
-    "name", "Alex", "action_url", "https://example.com/start"
+var email = sendery.prepare("steven@example.com", "your-template", Map.of(
+    "name", "Steven", "action_url", "https://example.com/start"
 ), null, "your-idempotency-key");
 var receipt = email.retry(3).send();
 ```
@@ -170,7 +170,7 @@ Start with [Connecting your application](https://sendery.co/en/docs/connect-even
 
 ```java
 var receipt = sendery.event("account.created", "account", "842",
-    Map.of("email", "alex@example.com", "name", "Alex")
+    Map.of("email", "steven@example.com", "name", "Steven")
 ).retry().send();
 ```
 

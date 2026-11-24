@@ -64,13 +64,13 @@ class SenderyTest {
         server.start();
         try {
             var client = new Sendery("test", "http://127.0.0.1:" + server.getAddress().getPort());
-            var owner = new HashMap<String, String>(); owner.put("email", "alex@example.com");
+            var owner = new HashMap<String, String>(); owner.put("email", "steven@example.com");
             var event = client.event("listing.created", "listing", "42", Map.of("owner", owner));
             owner.put("email", "changed@example.com");
             assertEquals(2, event.retry().send().matchedWorkflows());
             assertEquals(bodies.get(0), bodies.get(1));
             assertEquals(keys.get(0), keys.get(1));
-            assertTrue(bodies.get(0).contains("alex@example.com"));
+            assertTrue(bodies.get(0).contains("steven@example.com"));
             var result = client.getEvent("event");
             assertEquals("event", result.id());
             assertEquals("listing.created", result.name());
