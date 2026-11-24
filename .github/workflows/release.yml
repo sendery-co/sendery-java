@@ -19,7 +19,18 @@ jobs:
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
-      - run: test "v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" = "$GITHUB_REF_NAME"
+      - name: Check release version
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          version = ET.parse("pom.xml").getroot().findtext("{http://maven.apache.org/POM/4.0.0}version", "").strip()
+          tag = os.environ["GITHUB_REF_NAME"]
+          print(f"Package version: {version}; release tag: {tag}", flush=True)
+          if not version or tag != f"v{version}":
+              raise SystemExit("Release tag must match the version in pom.xml.")
+          PY
       - run: mvn --batch-mode -Prelease deploy
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
