@@ -42,6 +42,14 @@ public final class Sendery {
     }
     public SendReceipt send(String to, String template, Map<String, ?> data) { return prepare(to, template, data).send(); }
     public SendReceipt get(String id) { return request("GET", "/api/v1/emails/" + URLEncoder.encode(id, StandardCharsets.UTF_8), null, null); }
+    public RenderedEmail render(String template, Map<String, ?> data) { return render(template, data, null, null); }
+    public RenderedEmail render(String template, Map<String, ?> data, String locale, Integer version) {
+        if (version != null && version < 1) throw new IllegalArgumentException("Version must be a positive integer.");
+        var payload = new JsonObject(); payload.addProperty("template", template); payload.add("data", json.toJsonTree(data));
+        if (locale != null) payload.addProperty("locale", locale);
+        if (version != null) payload.addProperty("version", version);
+        return request("POST", "/api/v1/emails/render", payload.toString(), null, RenderedEmail.class);
+    }
     public EventTypeReceipt defineEvent(String name, Map<String, ?> definition) {
         return request("PUT", "/api/v1/event-types/" + URLEncoder.encode(name, StandardCharsets.UTF_8), json.toJson(definition), null, EventTypeReceipt.class);
     }
@@ -88,7 +96,11 @@ public final class Sendery {
         }
         try {
             var object = JsonParser.parseString(response.body()).getAsJsonObject();
-            if (path.equals("/api/v1/event-types")) {
+            if (path.equals("/api/v1/emails/render")) {
+                for (String field : List.of("subject", "html", "text")) {
+                    if (!object.has(field) || !object.get(field).isJsonPrimitive() || !object.getAsJsonPrimitive(field).isString()) throw new IllegalArgumentException();
+                }
+            } else if (path.equals("/api/v1/event-types")) {
                 if (!object.has("events") || !object.get("events").isJsonArray()) throw new IllegalArgumentException();
             } else if (path.startsWith("/api/v1/event-types/")) {
                 if (!object.has("name") || !object.get("name").isJsonPrimitive() || !object.getAsJsonPrimitive("name").isString() || !object.has("verified") || !object.get("verified").isJsonPrimitive() || !object.getAsJsonPrimitive("verified").isBoolean()) throw new IllegalArgumentException();

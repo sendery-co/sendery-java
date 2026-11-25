@@ -8,6 +8,29 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SenderyTest {
+    @Test void rendersWithoutSendingAndPreservesSandboxKey() throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        var requests = new ArrayList<String>();
+        var keys = new ArrayList<String>();
+        server.createContext("/api/v1/emails/render", exchange -> {
+            requests.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            keys.add(exchange.getRequestHeaders().getFirst("Authorization"));
+            var response = "{\"subject\":\"Hello\",\"html\":\"<p>Hello</p>\",\"text\":\"Hello\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response); exchange.close();
+        });
+        server.start();
+        try {
+            var client = new Sendery("snd_sandbox_test", "http://127.0.0.1:" + server.getAddress().getPort());
+            assertEquals("Hello", client.render("welcome", Map.of("name", "Steven"), "ja", 2).subject());
+            var body = com.google.gson.JsonParser.parseString(requests.get(0)).getAsJsonObject();
+            assertEquals(2, body.get("version").getAsInt());
+            assertFalse(body.has("to"));
+            assertEquals(List.of("Bearer snd_sandbox_test"), keys);
+            assertThrows(IllegalArgumentException.class, () -> client.render("welcome", Map.of(), null, 0));
+        } finally { server.stop(0); }
+    }
+
     @Test void retriesFreezePayloadAndKey() throws Exception {
         var bodies = new ArrayList<String>();
         var keys = new ArrayList<String>();
