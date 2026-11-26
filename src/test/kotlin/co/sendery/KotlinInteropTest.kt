@@ -23,6 +23,28 @@ class KotlinInteropTest {
         } finally { server.stop(0) }
     }
 
+    @Test fun sendsEventLanguageFromKotlin() {
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        val requests = java.util.concurrent.CopyOnWriteArrayList<String>()
+        server.createContext("/api/v1/events") { exchange ->
+            requests.add(String(exchange.requestBody.readAllBytes(), Charsets.UTF_8))
+            val body = """{"id":"event","status":"accepted","matched_workflows":1}""".toByteArray()
+            exchange.sendResponseHeaders(202, body.size.toLong())
+            exchange.responseBody.write(body)
+            exchange.close()
+        }
+        server.start()
+        try {
+            val result = Sendery("test", "http://127.0.0.1:${server.address.port}")
+                .event("account.created", "account", "42", mapOf("email" to "user@example.com"))
+                .language("ja").send()
+            assertEquals("event", result.id())
+            val payload = com.google.gson.JsonParser.parseString(requests[0]).asJsonObject
+            assertEquals("ja", payload.get("language").asString)
+            assertEquals("user@example.com", payload.getAsJsonObject("data").get("email").asString)
+        } finally { server.stop(0) }
+    }
+
     @Test fun acceptsKotlinMapsAndExplicitKeys() {
         val email = Sendery("test").prepare("a@example.com", "welcome", mapOf("name" to "Steven"), "ja", "event-12", listOf(Attachment("invoice.pdf", byteArrayOf(0, 1, -1), "application/pdf")))
         email.version(3)
